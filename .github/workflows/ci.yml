@@ -1,0 +1,50 @@
+name: CI
+
+# Runs on every push to main, on pull requests, and on demand
+# (Actions tab -> CI -> Run workflow).
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  backend:
+    name: Backend tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install backend dependencies
+        working-directory: backend
+        run: pip install -r requirements.txt
+      - name: Run backend tests
+        working-directory: backend
+        env:
+          DATABASE_URL: "sqlite:///./ci.db"
+        run: python -m pytest -q
+
+  app:
+    name: Start the app and test it end to end
+    runs-on: ubuntu-latest
+    needs: [ backend ]
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Start the app exactly as a user would (bash start.sh)
+        run: |
+          nohup bash start.sh > app.log 2>&1 &
+          echo "started"
+      - name: End-to-end smoke test on port 8000 (29 checks)
+        run: python3 scripts/smoke_test.py --base http://localhost:8000 --wait 300
+      - name: App log
+        if: always()
+        run: cat app.log
