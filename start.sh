@@ -16,33 +16,44 @@ say() { printf '\033[1;34m[setup]\033[0m %s\n' "$*"; }
 fail() { printf '\033[1;31m[error]\033[0m %s\n' "$*" >&2; exit 1; }
 
 # --- 1. Check tools -----------------------------------------------------------
+# Any Python 3 works here: it is only used to bootstrap. The app itself always
+# runs on its own Python 3.12 (step 2), whatever version the machine has.
 PY="$(command -v python3 || command -v python || true)"
-[ -n "$PY" ] || fail "Python 3.10+ is required but was not found."
-"$PY" -c 'import sys; sys.exit(0 if sys.version_info >= (3, 10) else 1)' \
-  || fail "Python 3.10+ is required (found $("$PY" --version 2>&1))."
+[ -n "$PY" ] || fail "Python 3 is required but was not found."
 command -v node >/dev/null || fail "Node.js 18+ is required but was not found."
 node -e 'process.exit(parseInt(process.versions.node) >= 18 ? 0 : 1)' \
   || fail "Node.js 18+ is required (found $(node --version))."
 command -v npm >/dev/null || fail "npm is required but was not found."
-say "Using $("$PY" --version 2>&1) and Node $(node --version)"
 
-# --- 2. Backend dependencies (re-installed only when requirements.txt changes) --
-VENV="$ROOT/.venv"
+# --- 2. Python 3.12 + backend packages ------------------------------------------
+# Installed once, OUTSIDE the project folder (so the editor does not scan
+# thousands of library files), with prebuilt packages only (never compiles).
+APP_HOME="${ABC_HOME:-$HOME/.abc-support}"
+TOOLS="$APP_HOME/tools"
+VENV="$APP_HOME/venv"
+UV="$TOOLS/bin/uv"
 REQ="$ROOT/backend/requirements.txt"
-STAMP="$VENV/.requirements.sha"
 REQ_SHA="$("$PY" -c 'import hashlib,sys; print(hashlib.sha256(open(sys.argv[1],"rb").read()).hexdigest())' "$REQ")"
-if [ ! -x "$VENV/bin/python" ]; then
-  say "Creating Python environment (.venv)..."
-  "$PY" -m venv "$VENV"
+WANT="python3.12:$REQ_SHA"
+if [ ! -x "$UV" ]; then
+  say "Installing the uv package manager (one time, a few seconds)..."
+  rm -rf "$TOOLS"
+  "$PY" -m venv "$TOOLS" || fail "Could not create a Python environment with $("$PY" --version 2>&1)."
+  "$TOOLS/bin/python" -m pip install --quiet --disable-pip-version-check uv \
+    || fail "Could not install uv (check the internet connection)."
 fi
-if [ "$(cat "$STAMP" 2>/dev/null || true)" != "$REQ_SHA" ]; then
-  say "Installing backend packages (first run takes about a minute)..."
-  "$VENV/bin/python" -m pip install --quiet --disable-pip-version-check --upgrade pip
-  "$VENV/bin/python" -m pip install --quiet --disable-pip-version-check -r "$REQ"
-  echo "$REQ_SHA" > "$STAMP"
+if [ ! -x "$VENV/bin/python" ] || [ "$(cat "$VENV/.stamp" 2>/dev/null || true)" != "$WANT" ]; then
+  say "Setting up Python 3.12 and backend packages (first run: about a minute)..."
+  rm -rf "$VENV"
+  "$UV" venv --quiet --python 3.12 --python-preference only-managed "$VENV" \
+    || fail "Could not get Python 3.12 (check the internet connection)."
+  "$UV" pip install --quiet --python "$VENV/bin/python" --no-build -r "$REQ" \
+    || fail "Could not install backend packages."
+  echo "$WANT" > "$VENV/.stamp"
 else
   say "Backend packages already installed"
 fi
+say "Using $("$VENV/bin/python" --version 2>&1) and Node $(node --version)"
 
 # --- 3. Website (built into frontend/dist and served by the backend) ----------
 LOCK_SHA="$("$PY" -c 'import hashlib,sys; print(hashlib.sha256(open(sys.argv[1],"rb").read()).hexdigest())' "$ROOT/frontend/package-lock.json")"

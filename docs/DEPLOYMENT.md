@@ -15,7 +15,7 @@ This runbook covers three deployment paths:
 
 | Tool | Version |
 |---|---|
-| Python | 3.10+ (tested on 3.12) |
+| Python | any Python 3 to bootstrap; `start.sh` installs Python 3.12 itself (via uv) |
 | Node.js | 18+ (tested on 22) |
 | PostgreSQL | 16 — production only (managed via RDS); demos use SQLite |
 

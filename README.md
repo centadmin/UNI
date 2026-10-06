@@ -31,7 +31,7 @@ A full-stack platform that lets customers raise and self-serve support tickets, 
 
 ## Tech stack
 
-- **Backend:** Python 3.10+ (tested on 3.12), FastAPI, SQLAlchemy 2, scikit-learn, JWT auth (python-jose), bcrypt
+- **Backend:** Python 3.12 (provisioned automatically by `start.sh`), FastAPI, SQLAlchemy 2, scikit-learn, JWT auth (python-jose), bcrypt
 - **Frontend:** React 18, Vite, React Router, Recharts — built once and served by the backend
 - **Database:** SQLite for demos and Codespaces (zero setup); PostgreSQL in production via `DATABASE_URL`
 - **CI:** GitHub Actions — backend tests plus a full start-and-test of the app on every push
@@ -52,13 +52,13 @@ the API (`/api/...`) and the API docs (`/docs`). One command sets everything up.
    bash start.sh
    ```
 
-3. The first run installs everything (about 1–2 minutes). When it is ready it prints a green box with the address to open, e.g.
+3. The first run installs everything (about 1 minute; it downloads its own Python 3.12, whatever version the Codespace has). When it is ready it prints a green box with the address to open, e.g.
    `https://<your-codespace>-8000.app.github.dev`. Click it (or **Ports** tab → port **8000** → globe icon).
 4. Log in with a demo account (below). Stop with **Ctrl + C**.
 
 ### Your own computer (Linux, macOS, or Windows with WSL)
 
-Needs **Python 3.10+** and **Node.js 18+**. From the project folder:
+Needs **Node.js 18+** and any **Python 3** (`start.sh` downloads its own Python 3.12 and the packages, once, into `~/.abc-support/`). From the project folder:
 
 ```bash
 bash start.sh          # then open http://localhost:8000
